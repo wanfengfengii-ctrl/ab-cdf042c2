@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>地震预警短二进制码编配工作台</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>地震预警短二进制码编配工作台</h1>
+          <p class="subtitle">为 5–8 类警报编配即时可唯一解码的最优前缀二进制码</p>
+        </div>
+      </div>
+      <div class="topbar-meta">
+        <span id="draftState" class="draft-state"></span>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- 输入区 -->
+    <section class="card" aria-labelledby="inputTitle">
+      <div class="card-head">
+        <h2 id="inputTitle">调度参数录入</h2>
+        <div class="card-actions">
+          <button type="button" id="btnSample" class="btn btn-ghost">载入示例</button>
+          <button type="button" id="btnClear" class="btn btn-ghost">清空草稿</button>
+        </div>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <h3>警报类型与码长闭区间</h3>
+          <span class="hint" id="alertsCountHint"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="input-table">
+            <thead>
+              <tr>
+                <th class="col-idx">#</th>
+                <th>警报名称</th>
+                <th class="col-num">预计发送频次<br /><span class="th-sub">正整数</span></th>
+                <th class="col-num">码长下限<br /><span class="th-sub">bit，≥1</span></th>
+                <th class="col-num">码长上限<br /><span class="th-sub">bit，≤24</span></th>
+                <th class="col-op"></th>
+              </tr>
+            </thead>
+            <tbody id="alertsTbody"></tbody>
+          </table>
+        </div>
+        <button type="button" id="btnAddAlert" class="btn btn-ghost btn-sm">＋ 添加警报类型</button>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <h3>保留前缀（0–3 条）</h3>
+          <span class="hint">仅含 0/1；码树下这些分支被整体保留，分配码字既不能落入也不能遮蔽它们</span>
+        </div>
+        <div id="reservedWrap" class="reserved-wrap"></div>
+      </div>
+
+      <div class="block">
+        <button type="button" id="btnGenerate" class="btn btn-primary">生成码表</button>
+        <span class="hint">优化顺序：加权码长总和最小 → 最大码长最小 → 按输入顺序的码字字典序最小</span>
+      </div>
+
+      <div id="errorBanner" class="banner banner-error" hidden></div>
+    </section>
+
+    <!-- 结果区 -->
+    <section class="card" aria-labelledby="resultTitle">
+      <div class="card-head">
+        <h2 id="resultTitle">编配结果</h2>
+        <span id="resultStatus" class="result-status"></span>
+      </div>
+
+      <div id="resultPlaceholder" class="placeholder">
+        录入警报名称、频次、码长区间与保留前缀后，点击「生成码表」。<br />
+        输入发生任何变动后，旧结论将立即作废，需重新生成。
+      </div>
+
+
+      <div id="resultBody" hidden>
+        <div class="summary-cards">
+          <div class="summary-card">
+            <span class="summary-label">加权码长总和（总成本）</span>
+            <span class="summary-value" id="sumCost">–</span>
+            <span class="summary-sub">Σ 频次 × 码长</span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-label">最大码长</span>
+            <span class="summary-value" id="sumMax">–</span>
+            <span class="summary-sub">同成本下已取最小值</span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-label">保留分支</span>
+            <span class="summary-value" id="sumReserved">–</span>
+            <span class="summary-sub">不可落入 / 不可遮蔽</span>
+          </div>
+        </div>
+
+        <h3 class="result-h3">二叉码树</h3>
+        <div class="legend">
+          <span class="legend-item"><i class="dot dot-code"></i>分配码字</span>
+          <span class="legend-item"><i class="dot dot-reserved"></i>保留分支</span>
+          <span class="legend-item"><i class="edge edge-dash"></i>保留区间内不可用</span>
+        </div>
+        <div id="treeWrap" class="tree-wrap"></div>
+
+        <h3 class="result-h3">分配明细</h3>
+        <div class="table-wrap">
+          <table class="result-table">
+            <thead>
+              <tr>
+                <th class="col-idx">顺序</th>
+                <th>警报名称</th>
+                <th class="col-num">预计频次</th>
+                <th>码字</th>
+                <th class="col-num">码长 (bit)</th>
+                <th class="col-num">加权贡献</th>
+              </tr>
+            </thead>
+            <tbody id="detailTbody"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="5" class="foot-label">总成本（加权码长总和）</td>
+                <td class="col-num" id="detailTotal">–</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <h3 class="result-h3">保留分支区间</h3>
+        <div id="reservedDetail" class="reserved-detail"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>纯静态前端 · 无需后端 · 草稿仅保存在本机浏览器</span>
+  </footer>
+
+  <script src="solver.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
